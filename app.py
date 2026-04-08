@@ -1,43 +1,52 @@
 import streamlit as st
 import google.generativeai as genai
-import time
 
-# 1. Setup - Pulls your secret key from Streamlit settings
-try:
-    api_key = st.secrets["GEMINI_API_KEY"]
-    genai.configure(api_key=api_key)
-    # Using the most stable 2026 model
-    model = genai.GenerativeModel('gemini-2.5-flash-lite')
-except Exception as e:
-    st.error("Missing API Key. Please check your Streamlit Secrets.")
+# 1. API Configuration
+api_key = st.secrets["GEMINI_API_KEY"]
+genai.configure(api_key=api_key)
+# Using the high-performance 2026 model
+model = genai.GenerativeModel('gemini-2.5-flash')
 
-# 2. UI Styling
-st.set_page_config(page_title="AI Smart Calc", page_icon="🧮")
-st.title("🧮 AI Powered Calculator")
-st.write("Ask anything: 'Calculate my BMI', 'Split a $150 bill 3 ways', or 'Physics trajectory'.")
+# 2. Luxury Glassmorphism Styling
+st.markdown("""
+    <style>
+    .stApp {
+        background: radial-gradient(circle at center, #1a1a2e 0%, #020205 100%);
+    }
+    .glass-card {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(15px);
+        border-radius: 30px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 40px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        text-align: center;
+    }
+    h1 { color: #ffffff; font-weight: 200; letter-spacing: 2px; }
+    </style>
+    """, unsafe_allow_html=True)
 
-user_input = st.text_input("Enter your calculation:", placeholder="e.g. What is 15% tip on $84.50?")
+# 3. The 3D UI Layout
+st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+st.title("S O P H I A")
+st.write("Your Luxury AI Concierge")
 
-# 3. Logic with "Retry" fix for the Resource error
-if user_input:
-    with st.spinner('Calculating...'):
-        prompt = f"Solve this math/logic problem step-by-step: {user_input}. End with 'Final Answer: [result]'"
-        
-        success = False
-        # It will try up to 3 times if the server is busy
-        for attempt in range(3):
-            try:
-                response = model.generate_content(prompt)
-                st.info(response.text)
-                success = True
-                break 
-            except Exception as e:
-                if "429" in str(e) or "ResourceExhausted" in str(e):
-                    st.warning(f"Server is busy. Retrying in {attempt + 2} seconds...")
-                    time.sleep(attempt + 2)
-                else:
-                    st.error(f"An error occurred: {e}")
-                    break
-        
-        if not success:
-            st.error("Google's free servers are currently overloaded. Please try again in a minute.")
+# 4. Voice Input Widget (New for 2026)
+audio_data = st.audio_input("Speak to Sophia")
+
+if audio_data:
+    with st.spinner('Refining response...'):
+        try:
+            # We send the audio bytes directly to Gemini 2.5
+            response = model.generate_content([
+                "You are Sophia, a sophisticated luxury concierge. Speak with elegance and precision.",
+                {"mime_type": "audio/wav", "data": audio_data.read()}
+            ])
+            
+            st.markdown(f"### ✨ Sophia's Response:")
+            st.write(response.text)
+            
+        except Exception as e:
+            st.error(f"Concierge unavailable: {e}")
+
+st.markdown('</div>', unsafe_allow_html=True)
