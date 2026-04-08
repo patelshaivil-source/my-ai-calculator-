@@ -4,7 +4,7 @@ import google.generativeai as genai
 # Use Streamlit's "secrets" to hide your API key
 api_key = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=api_key)
-model = genai.GenerativeModel('gemini-2.0-flash')
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 st.set_page_config(page_title="AI Smart Calc", page_icon="🧮")
 st.title("🧮 AI Powered Calculator")
