@@ -4,49 +4,56 @@ import google.generativeai as genai
 # 1. API Configuration
 api_key = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=api_key)
-# Using the high-performance 2026 model
 model = genai.GenerativeModel('gemini-2.5-flash')
 
-# 2. Luxury Glassmorphism Styling
+# 2. Green & Black "Matrix Luxury" Styling
 st.markdown("""
     <style>
     .stApp {
-        background: radial-gradient(circle at center, #1a1a2e 0%, #020205 100%);
+        background: linear-gradient(180deg, #000000 0%, #062106 100%);
     }
     .glass-card {
-        background: rgba(255, 255, 255, 0.03);
+        background: rgba(0, 255, 0, 0.05);
         backdrop-filter: blur(15px);
-        border-radius: 30px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        border: 1px solid #00ff00;
         padding: 40px;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
         text-align: center;
+        color: #00ff00;
     }
-    h1 { color: #ffffff; font-weight: 200; letter-spacing: 2px; }
+    h1 { color: #00ff00; font-family: 'Courier New', monospace; font-weight: bold; }
+    p { color: #00ff00; }
+    /* This changes the microphone button color to green */
+    button {
+        background-color: #00ff00 !important;
+        color: black !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# 3. The 3D UI Layout
+# 3. The Layout
 st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-st.title("S O P H I A")
-st.write("Your Luxury AI Concierge")
+st.title("cAlsI")
+st.write("Precision Numerical Intelligence")
 
-# 4. Voice Input Widget (New for 2026)
-audio_data = st.audio_input("Speak to Sophia")
+# 4. Voice Input
+audio_data = st.audio_input("Speak Command")
 
 if audio_data:
-    with st.spinner('Refining response...'):
+    with st.spinner('Calculating...'):
         try:
-            # We send the audio bytes directly to Gemini 2.5
+            # We explicitly tell cAlsI to respond only in numbers or short formulas
             response = model.generate_content([
-                "You are Sophia, a sophisticated luxury concierge. Speak with elegance and precision.",
+                "You are cAlsI. Provide only numerical answers and short, direct solutions. No conversational filler.",
                 {"mime_type": "audio/wav", "data": audio_data.read()}
             ])
             
-            st.markdown(f"### ✨ Sophia's Response:")
-            st.write(response.text)
+            st.markdown(f"## Result:")
+            # We display the result in a large, bold font for high visibility
+            st.markdown(f"<h1 style='font-size: 60px;'>{response.text}</h1>", unsafe_allow_html=True)
             
         except Exception as e:
-            st.error(f"Concierge unavailable: {e}")
+            st.error(f"System Error: {e}")
 
 st.markdown('</div>', unsafe_allow_html=True)
