@@ -8,39 +8,35 @@ st.set_page_config(page_title="AI Financial Assistant", page_icon="🎙️")
 st.title("🎙️ AI Financial Voice Assistant")
 
 # 2. Secure API & Model Discovery
-# Note: Ensure your GEMINI_API_KEY is in .streamlit/secrets.toml
 try:
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    if "GEMINI_API_KEY" in st.secrets:
+        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    else:
+        st.error("API Key not found in secrets.toml!")
 except Exception as e:
-    st.error("API Key not found. Please check your secrets.toml file.")
+    st.error(f"Configuration Error: {e}")
 
 def find_working_model():
     try:
-        # Check what models your specific key is authorized for
         models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-
         if not models:
-            st.error("No models found! Check your API Key permissions in Google AI Studio.")
             return None
-
-        # Try to find the best one from the list
-        for target in ["models/gemini-1.5-flash", "models/gemini-pro", "models/chat-bison-001"]:
+        
+        # Priority list for models
+        for target in ["models/gemini-1.5-flash", "models/gemini-pro"]:
             if any(target in m for m in models):
                 return genai.GenerativeModel(target)
-
-        # Fallback to the first available model in the list
         return genai.GenerativeModel(models[0])
-    except Exception as e:
-        st.error(f"Connection Error: {e}")
+    except Exception:
         return None
 
 model = find_working_model()
 
-# 3. Database Setup
+# 3. Database Setup (Fixed Syntax)
 def init_db():
     conn = sqlite3.connect('calc_history.db', check_same_thread=False)
     cursor = conn.cursor()
-    # Create the history table for your Data Analysis requirements
+    # Table to store history for Data Analysis
     cursor.execute('''CREATE TABLE IF NOT EXISTS history
                      (method TEXT, question TEXT, answer TEXT)''')
     conn.commit()
@@ -49,15 +45,44 @@ def init_db():
 conn = init_db()
 cursor = conn.cursor()
 
-# 4. User Interface Tabs
-tab1, tab2, tab3 = st.tabs(["🎤 Voice Recognition", "⌨️ Text Input", "📜 History"])
+# 4. User Interface
+tab1, tab2, tab3 = st.tabs(["🎤 Voice", "⌨️ Text", "📜 History"])
 
 user_query = None
 
 with tab1:
-    st.subheader("Speak your math or financial problem")
-    # This component handles the microphone input
-    text = speech_to_text(start_prompt="Click to Speak", stop_prompt="Stop Recording", key='speech')
-    if text:
-        user_query = text
-        st.write(f"**Detected Voice:** {user_
+    st.subheader("Speak your financial question")
+    # This captures audio and converts it to text
+    voice_text = speech_to_text(start_prompt="Click to Speak", stop_prompt="Stop Recording", key='speech')
+    if voice_text:
+        user_query = voice_text
+        st.info(f"Detected: {user_query}")
+
+with tab2:
+    st.subheader("Type your question")
+    typed_query = st.text_input("e.g., 'Calculate the ROI on $5000 over 2 years at 7%'")
+    if typed_query:
+        user_query = typed_query
+
+# 5. Execution Logic
+if user_query and model:
+    with st.spinner("AI analyzing..."):
+        try:
+            response = model.generate_content(f"You are a financial assistant. Solve: {user_query}")
+            answer = response.text
+            st.success(answer)
+
+            # Log to SQL Database
+            cursor.execute("INSERT INTO history (method, question, answer) VALUES (?, ?, ?)", 
+                           ("Voice" if user_query == voice_text else "Text", user_query, answer))
+            conn.commit()
+        except Exception as e:
+            st.error(f"AI Error: {e}")
+
+with tab3:
+    st.subheader("Recent Calculations")
+    history = cursor.execute("SELECT * FROM history ORDER BY rowid DESC LIMIT 5").fetchall()
+    for item in history:
+        with st.expander(f"{item[0]}: {item[1][:50]}..."):
+            st.write(f"**Question:** {item[1]}")
+            st.write(f"**Answer:** {item[2]}")
