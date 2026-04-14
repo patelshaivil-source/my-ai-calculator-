@@ -1,79 +1,63 @@
 import streamlit as st
 import google.generativeai as genai
+import sqlite3
+from streamlit_mic_recorder import speech_to_text
 
-# 1. API Setup
-api_key = st.secrets["GEMINI_API_KEY"]
-genai.configure(api_key=api_key)
-model = genai.GenerativeModel('gemini-2.5-flash')
+# 1. Page Config
+st.set_page_config(page_title="AI Financial Assistant", page_icon="🎙️")
+st.title("🎙️ AI Financial Voice Assistant")
 
-# 2. High-Quality "Cyber-Luxury" Design
-st.set_page_config(page_title="cAlsI Intelligence", layout="centered")
+# 2. Secure API & Model Discovery
+# Note: Ensure your GEMINI_API_KEY is in .streamlit/secrets.toml
+try:
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+except Exception as e:
+    st.error("API Key not found. Please check your secrets.toml file.")
 
-st.markdown("""
-    <style>
-    /* Dark Matrix Background */
-    .stApp {
-        background: radial-gradient(circle at center, #0a1f0a 0%, #000000 100%);
-        color: #00ff41;
-        font-family: 'Courier New', Courier, monospace;
-    }
-    
-    /* Neumorphic 3D Card */
-    .luxury-card {
-        background: rgba(0, 0, 0, 0.6);
-        border: 2px solid #00ff41;
-        border-radius: 25px;
-        padding: 50px;
-        box-shadow: 0 0 15px #00ff41, inset 0 0 10px #00ff41;
-        margin-top: 50px;
-        text-align: center;
-    }
+def find_working_model():
+    try:
+        # Check what models your specific key is authorized for
+        models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
 
-    /* Animated Title */
-    .glitch {
-        font-size: 70px;
-        font-weight: bold;
-        text-transform: uppercase;
-        letter-spacing: 10px;
-        text-shadow: 2px 2px #000, 0 0 20px #00ff41;
-    }
+        if not models:
+            st.error("No models found! Check your API Key permissions in Google AI Studio.")
+            return None
 
-    /* Result Display */
-    .result-box {
-        background: rgba(0, 255, 65, 0.1);
-        border-radius: 15px;
-        padding: 20px;
-        margin-top: 30px;
-        border-left: 5px solid #00ff41;
-        font-size: 40px;
-        color: #ffffff;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+        # Try to find the best one from the list
+        for target in ["models/gemini-1.5-flash", "models/gemini-pro", "models/chat-bison-001"]:
+            if any(target in m for m in models):
+                return genai.GenerativeModel(target)
 
-# 3. App UI
-st.markdown('<div class="luxury-card">', unsafe_allow_html=True)
-st.markdown('<div class="glitch">cAlsI</div>', unsafe_allow_html=True)
-st.write("### ADVANCED NUMERICAL ENGINE")
+        # Fallback to the first available model in the list
+        return genai.GenerativeModel(models[0])
+    except Exception as e:
+        st.error(f"Connection Error: {e}")
+        return None
 
-# New 2026 Native Audio Input
-audio_data = st.audio_input("INITIATE VOICE COMMAND")
+model = find_working_model()
 
-if audio_data:
-    with st.status("Computing...", expanded=False) as status:
-        try:
-            # Explicit instructions for high-end behavior
-            response = model.generate_content([
-                "Identify as cAlsI. Be precise. Return ONLY the numerical result and a 1-sentence technical explanation. Use green emojis.",
-                {"mime_type": "audio/wav", "data": audio_data.read()}
-            ])
-            
-            st.markdown('<div class="result-box">', unsafe_allow_html=True)
-            st.write(f"📟 {response.text}")
-            st.markdown('</div>', unsafe_allow_html=True)
-            status.update(label="Computation Complete", state="complete")
-            
-        except Exception as e:
-            st.error(f"SYSTEM FAILURE: {e}")
+# 3. Database Setup
+def init_db():
+    conn = sqlite3.connect('calc_history.db', check_same_thread=False)
+    cursor = conn.cursor()
+    # Create the history table for your Data Analysis requirements
+    cursor.execute('''CREATE TABLE IF NOT EXISTS history
+                     (method TEXT, question TEXT, answer TEXT)''')
+    conn.commit()
+    return conn
 
-st.markdown('</div>', unsafe_allow_html=True)
+conn = init_db()
+cursor = conn.cursor()
+
+# 4. User Interface Tabs
+tab1, tab2, tab3 = st.tabs(["🎤 Voice Recognition", "⌨️ Text Input", "📜 History"])
+
+user_query = None
+
+with tab1:
+    st.subheader("Speak your math or financial problem")
+    # This component handles the microphone input
+    text = speech_to_text(start_prompt="Click to Speak", stop_prompt="Stop Recording", key='speech')
+    if text:
+        user_query = text
+        st.write(f"**Detected Voice:** {user_
