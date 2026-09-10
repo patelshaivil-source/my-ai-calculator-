@@ -1,6 +1,8 @@
 import streamlit as st
 import google.generativeai as genai
 import sqlite3
+import base64
+from pathlib import Path
 from datetime import datetime
 from streamlit_mic_recorder import speech_to_text
 
@@ -14,42 +16,60 @@ st.set_page_config(
 )
 
 # ============================================================
-# 2. DESIGN SYSTEM — dark, glassy, gradient-card aesthetic
+# 2. DESIGN SYSTEM — black / white / orange, animated glass finish
 # ============================================================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap');
 
 :root{
-  --bg: #08080c;
-  --bg-soft: #0e0e15;
-  --card: rgba(255,255,255,0.035);
-  --card-border: rgba(255,255,255,0.08);
-  --card-border-hover: rgba(255,255,255,0.16);
-  --text: #f2f2f5;
-  --text-dim: #9997a6;
-  --text-dimmer: #6b6976;
-  --pink-a: #ff2e63;
-  --pink-b: #ff6a88;
-  --blue-a: #4361ee;
-  --blue-b: #4cc9f0;
-  --violet-a: #7b2ff7;
-  --violet-b: #b76cff;
-  --green: #35d68e;
+  --bg: #060606;
+  --card-border: rgba(255,255,255,0.14);
+  --card-border-hover: rgba(255,255,255,0.28);
+  --text: #f6f4f0;
+  --text-dim: #cdc7bd;
+  --text-dimmer: #8f887c;
+  --orange-a: #ff5a1f;
+  --orange-b: #ff9a52;
+  --glass-black: rgba(8,8,8,0.55);
+  --glass-white: rgba(255,255,255,0.16);
+  --glass-dark: rgba(20,18,16,0.46);
   --radius: 20px;
+  --blur: 20px;
 }
 
 html, body, [class*="css"]  { font-family: 'Inter', -apple-system, sans-serif; }
 
-.stApp {
-  background:
-    radial-gradient(circle at 15% 0%, rgba(123,47,247,0.16), transparent 40%),
-    radial-gradient(circle at 85% 15%, rgba(255,46,99,0.10), transparent 35%),
-    var(--bg);
-}
+.stApp { background: var(--bg); }
 
 #MainMenu, footer, header {visibility: hidden;}
-.block-container { padding-top: 2.2rem; padding-bottom: 3rem; max-width: 1100px; }
+.block-container { padding-top: 2.2rem; padding-bottom: 3rem; max-width: 1100px; position: relative; z-index: 1; }
+
+/* ---------- ANIMATED VIDEO BACKGROUND ---------- */
+.bg-video-wrap{ position: fixed; inset: 0; z-index: 0; overflow: hidden; background: var(--bg); }
+.bg-video{
+  position:absolute; top:50%; left:50%; min-width:100%; min-height:100%;
+  width:auto; height:auto; transform: translate(-50%,-50%);
+  object-fit: cover; filter: grayscale(1) contrast(1.2) brightness(0.75);
+  opacity: 0.85;
+}
+.bg-tint{
+  position:absolute; inset:0;
+  background: linear-gradient(135deg, #ff5a1f 0%, #0a0a0a 75%);
+  mix-blend-mode: color; opacity: 0.95;
+}
+.bg-scrim{
+  position:absolute; inset:0;
+  background:
+    radial-gradient(circle at 18% 8%, rgba(255,120,60,0.20), transparent 42%),
+    linear-gradient(180deg, rgba(4,4,4,0.55) 0%, rgba(4,4,4,0.78) 55%, rgba(4,4,4,0.92) 100%);
+}
+
+/* ---------- GLASS BASE (mat frosted finish) ---------- */
+.glass{
+  backdrop-filter: blur(var(--blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(150%);
+}
 
 /* ---------- HERO ---------- */
 .hero-wrap{
@@ -63,8 +83,9 @@ html, body, [class*="css"]  { font-family: 'Inter', -apple-system, sans-serif; }
 .hero-badge-row{ display:flex; gap:10px; flex-wrap: wrap; }
 .pill{
   padding: 7px 14px; border-radius: 999px; font-size: 0.78rem; font-weight: 600;
-  background: var(--card); border: 1px solid var(--card-border); color: var(--text-dim);
+  background: var(--glass-dark); border: 1px solid var(--card-border); color: var(--text-dim);
   display:inline-flex; align-items:center; gap:6px; white-space: nowrap;
+  backdrop-filter: blur(14px) saturate(150%); -webkit-backdrop-filter: blur(14px) saturate(150%);
 }
 .pill .dot{ width:6px; height:6px; border-radius:50%; }
 
@@ -76,15 +97,16 @@ html, body, [class*="css"]  { font-family: 'Inter', -apple-system, sans-serif; }
   border-radius: var(--radius); padding: 20px 20px 18px;
   border: 1px solid var(--card-border);
   position: relative; overflow:hidden; min-height: 128px;
+  backdrop-filter: blur(var(--blur)) saturate(150%); -webkit-backdrop-filter: blur(var(--blur)) saturate(150%);
 }
-.stat-card .label{ font-size: 0.74rem; color: rgba(255,255,255,0.75); font-weight:600; letter-spacing:0.02em; }
+.stat-card .label{ font-size: 0.74rem; color: rgba(255,255,255,0.78); font-weight:600; letter-spacing:0.02em; }
 .stat-card .value{ font-size: 1.85rem; font-weight: 800; color: #fff; margin-top: 10px; font-family:'JetBrains Mono', monospace; }
-.stat-card .sub{ font-size: 0.72rem; color: rgba(255,255,255,0.65); margin-top:4px; }
+.stat-card .sub{ font-size: 0.72rem; color: rgba(255,255,255,0.68); margin-top:4px; }
 
-.stat-gradient-1{ background: linear-gradient(135deg, var(--pink-a), var(--pink-b)); }
-.stat-gradient-2{ background: linear-gradient(135deg, var(--blue-a), var(--blue-b)); }
-.stat-gradient-3{ background: linear-gradient(135deg, var(--violet-a), var(--violet-b)); }
-.stat-plain{ background: var(--card); }
+.stat-glass-orange{ background: linear-gradient(135deg, rgba(255,90,31,0.80), rgba(255,154,82,0.72)); border-color: rgba(255,154,82,0.35); }
+.stat-glass-white{ background: linear-gradient(135deg, rgba(255,255,255,0.22), rgba(255,255,255,0.08)); }
+.stat-glass-black{ background: var(--glass-black); }
+.stat-plain{ background: var(--glass-black); }
 .stat-plain .value{ color: var(--text); }
 .stat-plain .label{ color: var(--text-dim); }
 .stat-plain .sub{ color: var(--text-dimmer); }
@@ -98,25 +120,39 @@ html, body, [class*="css"]  { font-family: 'Inter', -apple-system, sans-serif; }
 /* ---------- QUICK PROMPT CHIPS ---------- */
 .section-label{ font-size:0.78rem; font-weight:700; color: var(--text-dim); text-transform:uppercase; letter-spacing:0.06em; margin: 4px 0 10px 2px;}
 div[data-testid="stHorizontalBlock"] .stButton>button{
-  background: var(--card); color: var(--text); border: 1px solid var(--card-border);
+  background: var(--glass-dark); color: var(--text); border: 1px solid var(--card-border);
   border-radius: 999px; padding: 6px 16px; font-size: 0.82rem; font-weight: 600;
   transition: all .15s ease;
+  backdrop-filter: blur(14px) saturate(150%); -webkit-backdrop-filter: blur(14px) saturate(150%);
 }
 div[data-testid="stHorizontalBlock"] .stButton>button:hover{
-  border-color: var(--card-border-hover); background: rgba(255,255,255,0.07); color:#fff;
+  border-color: var(--orange-a); background: rgba(255,90,31,0.16); color:#fff;
 }
 
+/* generic buttons (e.g. CSV export) */
+.stDownloadButton>button{
+  background: var(--glass-dark); color: var(--text); border: 1px solid var(--card-border);
+  border-radius: 999px; font-weight:600;
+  backdrop-filter: blur(14px) saturate(150%); -webkit-backdrop-filter: blur(14px) saturate(150%);
+}
+.stDownloadButton>button:hover{ border-color: var(--orange-a); color:#fff; }
+
 /* ---------- TABS reskinned as pill nav ---------- */
-.stTabs [data-baseweb="tab-list"]{ gap: 6px; background: var(--card); padding:6px; border-radius: 999px; border:1px solid var(--card-border); width: fit-content; }
+.stTabs [data-baseweb="tab-list"]{
+  gap: 6px; background: var(--glass-dark); padding:6px; border-radius: 999px;
+  border:1px solid var(--card-border); width: fit-content;
+  backdrop-filter: blur(16px) saturate(150%); -webkit-backdrop-filter: blur(16px) saturate(150%);
+}
 .stTabs [data-baseweb="tab"]{ border-radius: 999px; padding: 8px 20px; color: var(--text-dim); font-weight:600; }
-.stTabs [aria-selected="true"]{ background: #fff !important; color:#0a0a0f !important; }
+.stTabs [aria-selected="true"]{ background: #fff !important; color:#0a0a0a !important; }
 .stTabs [data-baseweb="tab-highlight"]{ display:none; }
 .stTabs [data-baseweb="tab-border"]{ display:none; }
 
 /* ---------- CARD PANEL ---------- */
 .panel{
-  background: var(--card); border: 1px solid var(--card-border); border-radius: var(--radius);
+  background: var(--glass-dark); border: 1px solid var(--card-border); border-radius: var(--radius);
   padding: 26px 26px 22px; margin-top: 18px;
+  backdrop-filter: blur(var(--blur)) saturate(150%); -webkit-backdrop-filter: blur(var(--blur)) saturate(150%);
 }
 .panel h4{ margin:0 0 4px 0; color: var(--text); font-size:1.05rem; }
 .panel p.hint{ color: var(--text-dimmer); font-size: 0.85rem; margin: 0 0 16px 0; }
@@ -124,22 +160,24 @@ div[data-testid="stHorizontalBlock"] .stButton>button:hover{
 /* ---------- ANSWER CARD ---------- */
 .answer-card{
   border-radius: var(--radius); padding: 22px 24px; margin-top: 18px;
-  background: linear-gradient(160deg, rgba(255,46,99,0.16), rgba(123,47,247,0.10));
-  border: 1px solid rgba(255,255,255,0.10);
+  background: linear-gradient(160deg, rgba(255,90,31,0.22), rgba(10,10,10,0.55));
+  border: 1px solid rgba(255,154,82,0.28);
+  backdrop-filter: blur(var(--blur)) saturate(150%); -webkit-backdrop-filter: blur(var(--blur)) saturate(150%);
 }
-.answer-card .tag{ font-size:0.72rem; font-weight:700; color: var(--pink-b); text-transform:uppercase; letter-spacing:0.05em; }
+.answer-card .tag{ font-size:0.72rem; font-weight:700; color: var(--orange-b); text-transform:uppercase; letter-spacing:0.05em; }
 .answer-card p{ color: var(--text); font-size: 0.98rem; line-height:1.55; margin-top:8px; white-space: pre-wrap; }
 
 /* ---------- HISTORY CARDS ---------- */
 .hist-card{
-  border: 1px solid var(--card-border); background: var(--card); border-radius: 16px;
+  border: 1px solid var(--card-border); background: var(--glass-dark); border-radius: 16px;
   padding: 16px 18px; margin-bottom: 12px; transition: border-color .15s ease;
+  backdrop-filter: blur(var(--blur)) saturate(150%); -webkit-backdrop-filter: blur(var(--blur)) saturate(150%);
 }
 .hist-card:hover{ border-color: var(--card-border-hover); }
 .hist-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
 .hist-method{ font-size:0.72rem; font-weight:700; padding:3px 10px; border-radius:999px; }
-.hist-method.voice{ background: rgba(76,201,240,0.18); color:#4cc9f0; }
-.hist-method.text{ background: rgba(255,106,136,0.18); color:#ff6a88; }
+.hist-method.voice{ background: rgba(255,90,31,0.20); color:#ff9a52; }
+.hist-method.text{ background: rgba(255,255,255,0.14); color:#fff; }
 .hist-time{ font-size:0.72rem; color: var(--text-dimmer); }
 .hist-q{ color:#fff; font-weight:600; font-size:0.92rem; margin-bottom:4px; }
 .hist-a{ color: var(--text-dim); font-size:0.85rem; line-height:1.5; }
@@ -148,11 +186,33 @@ div[data-testid="stHorizontalBlock"] .stButton>button:hover{
 
 /* inputs */
 .stTextInput input{
-  background: rgba(255,255,255,0.04) !important; border:1px solid var(--card-border) !important;
+  background: rgba(255,255,255,0.06) !important; border:1px solid var(--card-border) !important;
   border-radius: 12px !important; color: #fff !important; padding: 12px 14px !important;
+  backdrop-filter: blur(14px) saturate(150%);
 }
 </style>
 """, unsafe_allow_html=True)
+
+
+@st.cache_resource(show_spinner=False)
+def load_bg_video_b64():
+    video_path = Path(__file__).resolve().parent / "assets" / "bg-motion.mp4"
+    if video_path.exists():
+        return base64.b64encode(video_path.read_bytes()).decode("utf-8")
+    return None
+
+
+_bg_video_b64 = load_bg_video_b64()
+if _bg_video_b64:
+    st.markdown(f"""
+    <div class="bg-video-wrap">
+      <video class="bg-video" autoplay muted loop playsinline>
+        <source src="data:video/mp4;base64,{_bg_video_b64}" type="video/mp4">
+      </video>
+      <div class="bg-tint"></div>
+      <div class="bg-scrim"></div>
+    </div>
+    """, unsafe_allow_html=True)
 
 # ============================================================
 # 3. API CONFIG & MODEL DISCOVERY
@@ -258,7 +318,7 @@ st.markdown(f"""
 <div class="hero-wrap">
   <div class="hero-title">AI Financial Voice Assistant</div>
   <div class="hero-badge-row">
-    <span class="pill"><span class="dot" style="background:{'#35d68e' if api_ready and model else '#ff2e63'}"></span>{"Model connected" if api_ready and model else "Model offline"}</span>
+    <span class="pill"><span class="dot" style="background:{'#ff5a1f' if api_ready and model else 'rgba(255,255,255,0.3)'}"></span>{"Model connected" if api_ready and model else "Model offline"}</span>
     <span class="pill">Voice · Text</span>
   </div>
 </div>
@@ -266,18 +326,18 @@ st.markdown(f"""
 
 st.markdown(f"""
 <div class="stat-row">
-  <div class="stat-card stat-gradient-1">
+  <div class="stat-card stat-glass-orange">
     <div class="dotgrid"></div>
     <div class="label">Total Calculations</div>
     <div class="value">{total_count}</div>
     <div class="sub">All-time questions asked</div>
   </div>
-  <div class="stat-card stat-gradient-2">
+  <div class="stat-card stat-glass-white">
     <div class="label">Voice Queries</div>
     <div class="value">{voice_count}</div>
     <div class="sub">Answered via mic input</div>
   </div>
-  <div class="stat-card stat-gradient-3">
+  <div class="stat-card stat-glass-black">
     <div class="label">Text Queries</div>
     <div class="value">{text_count}</div>
     <div class="sub">Answered via typed input</div>
