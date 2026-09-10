@@ -9,7 +9,6 @@ from streamlit_mic_recorder import speech_to_text
 # ============================================================
 st.set_page_config(
     page_title="AI Financial Voice Assistant",
-    page_icon="🎙️",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -146,7 +145,6 @@ div[data-testid="stHorizontalBlock"] .stButton>button:hover{
 .hist-a{ color: var(--text-dim); font-size:0.85rem; line-height:1.5; }
 
 .empty-state{ text-align:center; padding: 50px 20px; color: var(--text-dimmer); }
-.empty-state .emoji{ font-size:2.2rem; margin-bottom:10px; }
 
 /* inputs */
 .stTextInput input{
@@ -165,7 +163,7 @@ try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         api_ready = True
     else:
-        st.error("⚠️ API Key not found in secrets. Add GEMINI_API_KEY in your app's Settings → Secrets.")
+        st.error("API Key not found in secrets. Add GEMINI_API_KEY in your app's Settings > Secrets.")
 except Exception as e:
     st.error(f"Configuration Error: {e}")
 
@@ -225,10 +223,10 @@ last_row = cursor.execute("SELECT method, question, answer FROM history ORDER BY
 
 st.markdown(f"""
 <div class="hero-wrap">
-  <div class="hero-title">🎙️ AI Financial Voice Assistant</div>
+  <div class="hero-title">AI Financial Voice Assistant</div>
   <div class="hero-badge-row">
     <span class="pill"><span class="dot" style="background:{'#35d68e' if api_ready and model else '#ff2e63'}"></span>{"Model connected" if api_ready and model else "Model offline"}</span>
-    <span class="pill">🗣️ Voice · ⌨️ Text</span>
+    <span class="pill">Voice · Text</span>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -264,10 +262,10 @@ st.markdown(f"""
 # ============================================================
 st.markdown('<div class="section-label">Quick Prompts</div>', unsafe_allow_html=True)
 examples = [
-    ("📈 ROI", "Calculate the ROI on $5000 invested over 2 years at 7% annual return"),
-    ("🏠 Loan EMI", "Calculate the monthly EMI for a $250,000 loan at 6.5% interest over 30 years"),
-    ("💰 Compound Interest", "What is the compound interest on $10,000 at 5% annually for 3 years?"),
-    ("📊 Budget Split", "Split a $6000 monthly income using the 50/30/20 budgeting rule"),
+    ("ROI", "Calculate the ROI on $5000 invested over 2 years at 7% annual return"),
+    ("Loan EMI", "Calculate the monthly EMI for a $250,000 loan at 6.5% interest over 30 years"),
+    ("Compound Interest", "What is the compound interest on $10,000 at 5% annually for 3 years?"),
+    ("Budget Split", "Split a $6000 monthly income using the 50/30/20 budgeting rule"),
 ]
 chip_cols = st.columns(len(examples))
 for col, (label, prompt) in zip(chip_cols, examples):
@@ -278,14 +276,14 @@ for col, (label, prompt) in zip(chip_cols, examples):
 # ============================================================
 # 8. MAIN INTERACTION — Voice / Text / History
 # ============================================================
-tab1, tab2, tab3 = st.tabs(["🎤  Voice", "⌨️  Text", "📜  History"])
+tab1, tab2, tab3 = st.tabs(["Voice", "Text", "History"])
 
 user_query = None
 input_method = None
 
 with tab1:
     st.markdown('<div class="panel"><h4>Speak your financial question</h4><p class="hint">Tap to record, then let the assistant do the math.</p>', unsafe_allow_html=True)
-    voice_text = speech_to_text(start_prompt="🎙️ Click to Speak", stop_prompt="⏹️ Stop Recording", key='speech')
+    voice_text = speech_to_text(start_prompt="Click to Speak", stop_prompt="Stop Recording", key='speech')
     if voice_text:
         st.info(f"Detected: {voice_text}")
         user_query = voice_text
@@ -309,7 +307,6 @@ with tab3:
     if total_count == 0:
         st.markdown("""
         <div class="empty-state">
-          <div class="emoji">🗂️</div>
           <div>No calculations yet — ask something in Voice or Text to see it here.</div>
         </div>
         """, unsafe_allow_html=True)
@@ -319,13 +316,12 @@ with tab3:
         ).fetchall()
         for method, question, answer, ts in rows:
             method_class = "voice" if method == "Voice" else "text"
-            icon = "🎤" if method == "Voice" else "⌨️"
             ts_display = ts if ts else ""
             answer_preview = (answer[:220] + "…") if answer and len(answer) > 220 else (answer or "")
             st.markdown(f"""
             <div class="hist-card">
               <div class="hist-top">
-                <span class="hist-method {method_class}">{icon} {method}</span>
+                <span class="hist-method {method_class}">{method}</span>
                 <span class="hist-time">{ts_display}</span>
               </div>
               <div class="hist-q">{question}</div>
@@ -339,7 +335,7 @@ with tab3:
             safe_a = (answer or "").replace('"', "'").replace("\n", " ")
             csv_lines.append(f'"{method}","{safe_q}","{safe_a}","{ts or ""}"')
         st.download_button(
-            "⬇️ Export history as CSV",
+            "Export history as CSV",
             data="\n".join(csv_lines),
             file_name="financial_assistant_history.csv",
             mime="text/csv",
