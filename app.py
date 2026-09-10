@@ -45,13 +45,18 @@ html, body, [class*="css"]  { font-family: 'Inter', -apple-system, sans-serif; }
 #MainMenu, footer, header {visibility: hidden;}
 .block-container { padding-top: 2.2rem; padding-bottom: 3rem; max-width: 1100px; position: relative; z-index: 1; }
 
-/* ---------- ANIMATED VIDEO BACKGROUND ---------- */
+/* ---------- BACKGROUND IMAGE ---------- */
 .bg-video-wrap{ position: fixed; inset: 0; z-index: 0; overflow: hidden; background: var(--bg); }
 .bg-video{
   position:absolute; top:50%; left:50%; min-width:100%; min-height:100%;
-  width:auto; height:auto; transform: translate(-50%,-50%);
-  object-fit: cover; filter: grayscale(1) contrast(1.2) brightness(0.75);
-  opacity: 0.85;
+  width:auto; height:auto; transform: translate(-50%,-50%) scale(1);
+  object-fit: cover; filter: grayscale(1) contrast(1.25) brightness(0.75);
+  opacity: 0.9;
+  animation: bg-slow-zoom 26s ease-in-out infinite alternate;
+}
+@keyframes bg-slow-zoom{
+  0%   { transform: translate(-50%,-50%) scale(1); }
+  100% { transform: translate(-50%,-50%) scale(1.08); }
 }
 .bg-tint{
   position:absolute; inset:0;
@@ -196,20 +201,18 @@ div[data-testid="stHorizontalBlock"] .stButton>button:hover{
 
 
 @st.cache_resource(show_spinner=False)
-def load_bg_video_b64():
-    video_path = Path(__file__).resolve().parent / "assets" / "bg-motion.mp4"
-    if video_path.exists():
-        return base64.b64encode(video_path.read_bytes()).decode("utf-8")
+def load_bg_image_b64():
+    image_path = Path(__file__).resolve().parent / "assets" / "bg-image.jpg"
+    if image_path.exists():
+        return base64.b64encode(image_path.read_bytes()).decode("utf-8")
     return None
 
 
-_bg_video_b64 = load_bg_video_b64()
-if _bg_video_b64:
+_bg_image_b64 = load_bg_image_b64()
+if _bg_image_b64:
     st.markdown(f"""
     <div class="bg-video-wrap">
-      <video class="bg-video" autoplay muted loop playsinline>
-        <source src="data:video/mp4;base64,{_bg_video_b64}" type="video/mp4">
-      </video>
+      <img class="bg-video" src="data:image/jpeg;base64,{_bg_image_b64}" alt="" />
       <div class="bg-tint"></div>
       <div class="bg-scrim"></div>
     </div>
