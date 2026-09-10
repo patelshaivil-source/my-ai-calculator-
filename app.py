@@ -20,7 +20,7 @@ st.set_page_config(
 # ============================================================
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&family=Jura:wght@500;600;700&display=swap');
 
 :root{
   --bg: #060606;
@@ -77,8 +77,9 @@ html, body, [class*="css"]  { font-family: 'Inter', -apple-system, sans-serif; }
   flex-wrap: wrap; gap: 18px; margin-bottom: 28px;
 }
 .hero-title{
-  font-size: 2.1rem; font-weight: 800; color: var(--text); margin:0;
-  letter-spacing: -0.02em; display:flex; align-items:center; gap:12px;
+  font-family: 'Jura', 'Inter', -apple-system, sans-serif;
+  font-size: 2.1rem; font-weight: 700; color: var(--text); margin:0;
+  letter-spacing: -0.01em; display:flex; align-items:center; gap:12px;
 }
 .hero-badge-row{ display:flex; gap:10px; flex-wrap: wrap; }
 .pill{
