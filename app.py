@@ -168,21 +168,54 @@ except Exception as e:
     st.error(f"Configuration Error: {e}")
 
 
+# Ordered by preference — newest/cheapest first. Google periodically retires
+# older model ids (e.g. the original "gemini-pro" no longer serves generateContent),
+# so instead of trusting list_models() metadata alone, we live-test each
+# candidate with a tiny request and keep the first one that actually answers.
+MODEL_PREFERENCES = [
+    "gemini-2.5-flash",
+    "gemini-2.5-pro",
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-001",
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-latest",
+    "gemini-1.5-pro",
+    "gemini-pro",
+]
+
+
 @st.cache_resource(show_spinner=False)
 def find_working_model():
     try:
-        models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        if not models:
-            return None
-        for target in ["models/gemini-1.5-flash", "models/gemini-pro"]:
-            if any(target in m for m in models):
-                return genai.GenerativeModel(target)
-        return genai.GenerativeModel(models[0])
+        available = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
     except Exception:
-        return None
+        return None, None
+    if not available:
+        return None, None
+
+    # Order candidates: known-good names first (if present in the account's
+    # available list), then anything else the account exposes as a fallback.
+    ordered = []
+    for pref in MODEL_PREFERENCES:
+        for name in available:
+            if name.endswith(pref) and name not in ordered:
+                ordered.append(name)
+    for name in available:
+        if name not in ordered:
+            ordered.append(name)
+
+    for name in ordered:
+        try:
+            candidate = genai.GenerativeModel(name)
+            probe = candidate.generate_content("ping", generation_config={"max_output_tokens": 5})
+            _ = probe.text  # raises if the model rejected the call
+            return candidate, name
+        except Exception:
+            continue
+    return None, None
 
 
-model = find_working_model() if api_ready else None
+model, model_name = find_working_model() if api_ready else (None, None)
 
 # ============================================================
 # 4. DATABASE
@@ -252,7 +285,7 @@ st.markdown(f"""
   <div class="stat-card stat-plain">
     <div class="label">Status</div>
     <div class="value" style="font-size:1.2rem;">{"Ready" if (api_ready and model) else "Needs setup"}</div>
-    <div class="sub">{"Gemini model is live" if (api_ready and model) else "Check API key / model access"}</div>
+    <div class="sub">{(model_name.replace("models/", "") + " is live") if (api_ready and model) else "Check API key / model access"}</div>
   </div>
 </div>
 """, unsafe_allow_html=True)
