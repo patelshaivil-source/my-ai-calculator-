@@ -45,35 +45,18 @@ html, body, [class*="css"]  { font-family: 'Inter', -apple-system, sans-serif; }
 #MainMenu, footer, header {visibility: hidden;}
 .block-container { padding-top: 2.2rem; padding-bottom: 3rem; max-width: 1100px; position: relative; z-index: 1; }
 
-/* ---------- BACKGROUND IMAGE (animated: zoom/pan + light sweep) ---------- */
+/* ---------- ANIMATED VIDEO BACKGROUND ---------- */
 .bg-video-wrap{ position: fixed; inset: 0; z-index: 0; overflow: hidden; background: var(--bg); }
 .bg-video{
-  position:absolute; top:50%; left:50%; min-width:130%; min-height:130%;
-  width:auto; height:auto;
-  object-fit: cover; filter: grayscale(1) contrast(1.25) brightness(0.75);
-  opacity: 0.9;
-  animation: bg-drift 16s ease-in-out infinite alternate;
-}
-@keyframes bg-drift{
-  0%   { transform: translate(-54%,-52%) scale(1.06) rotate(0deg); }
-  50%  { transform: translate(-50%,-50%) scale(1.14) rotate(0.4deg); }
-  100% { transform: translate(-46%,-48%) scale(1.06) rotate(-0.4deg); }
+  position:absolute; top:50%; left:50%; min-width:100%; min-height:100%;
+  width:auto; height:auto; transform: translate(-50%,-50%);
+  object-fit: cover; filter: grayscale(1) contrast(1.2) brightness(0.75);
+  opacity: 0.85;
 }
 .bg-tint{
   position:absolute; inset:0;
   background: linear-gradient(135deg, #ff5a1f 0%, #0a0a0a 75%);
   mix-blend-mode: color; opacity: 0.95;
-}
-.bg-scan{
-  position:absolute; inset: -20%;
-  background: linear-gradient(115deg, transparent 40%, rgba(255,154,82,0.30) 48%, rgba(255,90,31,0.45) 50%, rgba(255,154,82,0.30) 52%, transparent 60%);
-  background-size: 220% 220%;
-  mix-blend-mode: screen;
-  animation: bg-scan-move 7s linear infinite;
-}
-@keyframes bg-scan-move{
-  0%   { background-position: 0% 0%; }
-  100% { background-position: 100% 100%; }
 }
 .bg-scrim{
   position:absolute; inset:0;
@@ -213,20 +196,21 @@ div[data-testid="stHorizontalBlock"] .stButton>button:hover{
 
 
 @st.cache_resource(show_spinner=False)
-def load_bg_image_b64():
-    image_path = Path(__file__).resolve().parent / "assets" / "bg-image.jpg"
-    if image_path.exists():
-        return base64.b64encode(image_path.read_bytes()).decode("utf-8")
+def load_bg_video_b64():
+    video_path = Path(__file__).resolve().parent / "assets" / "bg-motion.mp4"
+    if video_path.exists():
+        return base64.b64encode(video_path.read_bytes()).decode("utf-8")
     return None
 
 
-_bg_image_b64 = load_bg_image_b64()
-if _bg_image_b64:
+_bg_video_b64 = load_bg_video_b64()
+if _bg_video_b64:
     st.markdown(f"""
     <div class="bg-video-wrap">
-      <img class="bg-video" src="data:image/jpeg;base64,{_bg_image_b64}" alt="" />
+      <video class="bg-video" autoplay muted loop playsinline>
+        <source src="data:video/mp4;base64,{_bg_video_b64}" type="video/mp4">
+      </video>
       <div class="bg-tint"></div>
-      <div class="bg-scan"></div>
       <div class="bg-scrim"></div>
     </div>
     """, unsafe_allow_html=True)
